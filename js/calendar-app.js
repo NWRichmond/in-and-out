@@ -1,16 +1,30 @@
 import { defaultConfig } from './default-config.js';
-import { escapeHtml } from './html-utils.js';
+import { isValidHexColor } from './html-utils.js';
 import './calendar-heatmap.js';
 import './calendar-config-form.js';
 
 const STORAGE_KEY = 'calendar-heatmap-config';
 
+function isValidCategory(value) {
+  return (
+    value &&
+    typeof value === 'object' &&
+    typeof value.id === 'string' &&
+    typeof value.name === 'string' &&
+    isValidHexColor(value.color) &&
+    Array.isArray(value.dates) &&
+    value.dates.every((d) => typeof d === 'string')
+  );
+}
+
 function isValidConfig(value) {
   return (
     value &&
+    typeof value === 'object' &&
     typeof value.periodStart === 'string' &&
     typeof value.periodEnd === 'string' &&
-    Array.isArray(value.categories)
+    Array.isArray(value.categories) &&
+    value.categories.every(isValidCategory)
   );
 }
 
@@ -20,9 +34,10 @@ function loadConfig() {
     if (!raw) return structuredClone(defaultConfig);
     const parsed = JSON.parse(raw);
     if (!isValidConfig(parsed)) {
-      console.warn('calendar-app: discarding invalid stored config', parsed);
+      console.warn('calendar-app: discarding invalid or schema-mismatched stored config', parsed);
       return structuredClone(defaultConfig);
     }
+    if (typeof parsed.gutterOpen !== 'boolean') parsed.gutterOpen = true;
     return parsed;
   } catch (err) {
     console.warn('calendar-app: discarding invalid stored config', err);
@@ -58,20 +73,21 @@ export class CalendarApp extends HTMLElement {
     this.render();
   }
 
+  /** Builds the shell DOM once. Never called again after connectedCallback. */
   render() {
-    const collapsedClass = this.#config.gutterOpen ? '' : ' collapsed';
     this.shadowRoot.innerHTML = `
       <style>${STYLES}</style>
-      <button class="toggle" id="toggle">${this.#config.gutterOpen ? 'Hide form' : 'Show form'}</button>
-      <div class="layout${collapsedClass}">
+      <button class="toggle" id="toggle"></button>
+      <div class="layout" id="layout">
         <div class="gutter"><calendar-config-form id="form"></calendar-config-form></div>
         <div class="main">
           <calendar-heatmap id="heatmap"></calendar-heatmap>
-          ${this.#config.notes ? `<div class="notes">${escapeHtml(this.#config.notes)}</div>` : ''}
         </div>
       </div>
     `;
     this.#wireChildren();
+    this.#applyGutterState();
+    this.#renderNotes();
   }
 
   #wireChildren() {
@@ -85,13 +101,15 @@ export class CalendarApp extends HTMLElement {
     this.shadowRoot.getElementById('toggle').addEventListener('click', () => {
       this.#config.gutterOpen = !this.#config.gutterOpen;
       this.#persist();
-      this.render();
+      this.#applyGutterState();
     });
 
     form.addEventListener('config-change', (e) => {
       this.#config = e.detail;
+      this.#reconcilePaintTool(form, heatmap);
       this.#persist();
       heatmap.config = this.#config;
+      this.#renderNotes();
     });
 
     form.addEventListener('paint-tool-change', (e) => {
@@ -102,6 +120,46 @@ export class CalendarApp extends HTMLElement {
     heatmap.addEventListener('day-click', (e) => {
       this.#applyPaint(e.detail.date, form, heatmap);
     });
+  }
+
+  /** Flips the gutter's collapsed state without touching its children. */
+  #applyGutterState() {
+    const layout = this.shadowRoot.getElementById('layout');
+    const toggle = this.shadowRoot.getElementById('toggle');
+    layout.classList.toggle('collapsed', !this.#config.gutterOpen);
+    toggle.textContent = this.#config.gutterOpen ? 'Hide form' : 'Show form';
+  }
+
+  /** Creates/updates/removes the `.notes` element to match `this.#config.notes`. */
+  #renderNotes() {
+    const main = this.shadowRoot.querySelector('.main');
+    let notesEl = main.querySelector('.notes');
+    const notes = this.#config.notes;
+    if (notes) {
+      if (!notesEl) {
+        notesEl = document.createElement('div');
+        notesEl.className = 'notes';
+        main.appendChild(notesEl);
+      }
+      notesEl.textContent = notes;
+    } else if (notesEl) {
+      notesEl.remove();
+    }
+  }
+
+  /**
+   * If the active paint tool no longer refers to an existing category
+   * (e.g. it was just deleted via the form), turns paint mode off and
+   * resets the form's displayed selection to "Off" to match.
+   */
+  #reconcilePaintTool(form, heatmap) {
+    if (this.#paintTool === null || this.#paintTool === 'erase') return;
+    const stillExists = this.#config.categories.some((c) => c.id === this.#paintTool);
+    if (!stillExists) {
+      this.#paintTool = null;
+      this.#syncPaintAttribute(heatmap);
+      form.resetPaintTool();
+    }
   }
 
   #syncPaintAttribute(heatmap) {
