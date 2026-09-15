@@ -19,7 +19,11 @@ function loadConfig() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(defaultConfig);
     const parsed = JSON.parse(raw);
-    return isValidConfig(parsed) ? parsed : structuredClone(defaultConfig);
+    if (!isValidConfig(parsed)) {
+      console.warn('calendar-app: discarding invalid stored config', parsed);
+      return structuredClone(defaultConfig);
+    }
+    return parsed;
   } catch (err) {
     console.warn('calendar-app: discarding invalid stored config', err);
     return structuredClone(defaultConfig);
