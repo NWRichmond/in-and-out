@@ -35,7 +35,7 @@ js/
   calendar-heatmap.js     — <calendar-heatmap> — renders stats/legend/months/cells
   calendar-config-form.js — <calendar-config-form> — the gutter form
   date-utils.js           — pure date/range helper functions
-  default-config.js       — first-run example config (H1 2026 dataset)
+  default-config.js       — first-run example config (placeholder dataset)
 ```
 
 ### `<calendar-app>`
@@ -92,7 +92,7 @@ Pure functions, no classes:
 
 ### `default-config.js`
 
-Exports the H1 2026 example `Config` from the mockup (Feb 1 – Jul 31
+Exports a placeholder example `Config` in the shape of the mockup (Feb 1 – Jul 31
 2026; Regular/OOO/Offsite/AI/Security categories with their original
 dates) so the app isn't empty on first run.
 
@@ -158,7 +158,7 @@ fields, to keep the category list to things the user actually assigns.
 
 Manual verification in-browser (no test framework needed for a static
 app this size):
-- Load with empty `localStorage` → default H1 2026 example renders
+- Load with empty `localStorage` → default example renders
   correctly, matching the mockup's category colors/counts.
 - Edit period dates → month cards update.
 - Add/edit/remove a category and its ranges → cells, stats, and

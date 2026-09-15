@@ -325,11 +325,11 @@ export const defaultConfig = {
   periodEnd: '2026-07-31',
   gutterOpen: true,
   notes:
-    'Source: H1 2026 Performance Context. "OOO / PTO" is a single merged figure and is not broken out by holiday vs. personal time off. Security-response days reflect the 8 non-OOO weekdays of the May 18–29 emergency; May 25 and 29 within that window are counted under OOO.',
+    'Example dataset shown on first load. Edit the period and categories in the form to track your own — this data is just a placeholder.',
   categories: [
     {
-      id: 'security',
-      name: 'Security response day',
+      id: 'oncall',
+      name: 'On-call rotation',
       color: '#c0392b',
       dates: [
         '2026-05-18', '2026-05-19', '2026-05-20', '2026-05-21',
@@ -338,19 +338,19 @@ export const defaultConfig = {
     },
     {
       id: 'offsite',
-      name: 'Department offsite',
+      name: 'Team offsite',
       color: '#8e44ad',
       dates: ['2026-06-01', '2026-06-02', '2026-06-03', '2026-06-04', '2026-06-05'],
     },
     {
-      id: 'ai',
-      name: 'AI learning day',
+      id: 'training',
+      name: 'Training day',
       color: '#d4a017',
       dates: ['2026-03-17', '2026-03-18'],
     },
     {
-      id: 'ooo',
-      name: 'OOO / PTO',
+      id: 'timeoff',
+      name: 'Time off',
       color: '#2980b9',
       dates: [
         '2026-02-26', '2026-03-05', '2026-03-23', '2026-03-26', '2026-04-03',
@@ -372,7 +372,7 @@ Expected: PASS — 9 tests total, 0 failures
 
 ```bash
 git add js/default-config.js tests/default-config.test.js
-git commit -m "feat(default-config): add H1 2026 example dataset"
+git commit -m "feat(default-config): add example dataset"
 ```
 
 ---
@@ -654,10 +654,10 @@ customElements.define('calendar-heatmap', CalendarHeatmap);
 Run: `python3 -m http.server 8000` (ES module `import` needs `http://`, not `file://`)
 Open `http://localhost:8000/` and confirm:
 - A header shows "2026-02-01 – 2026-07-31".
-- 5 stat tiles (Regular workday, Security response day, Department offsite, AI learning day, OOO / PTO) with plausible counts.
+- 5 stat tiles (Regular workday, On-call rotation, Team offsite, Training day, Time off) with plausible counts.
 - A 6-entry legend including "Weekend".
 - 6 month cards, February–July 2026, each a 7-column grid with correct leading/trailing blanks.
-- Hovering June 1 shows a tooltip reading `2026-06-01 — Department offsite`; hovering May 18 reads `... — Security response day`; a Saturday/Sunday cell is pale gray.
+- Hovering June 1 shows a tooltip reading `2026-06-01 — Team offsite`; hovering May 18 reads `... — On-call rotation`; a Saturday/Sunday cell is pale gray.
 
 - [ ] **Step 5: Commit**
 
@@ -1151,7 +1151,7 @@ customElements.define('calendar-app', CalendarApp);
 - [ ] **Step 3: Manually verify in a browser (full checklist from the spec)**
 
 Run: `python3 -m http.server 8000`, open `http://localhost:8000/`, clear `localStorage` first (devtools → Application → Local Storage → delete `calendar-heatmap-config`, then reload) and confirm:
-- Default H1 2026 example renders correctly (same visual check as Task 3), and the notes paragraph appears below the calendar.
+- Default example renders correctly (same visual check as Task 3), and the notes paragraph appears below the calendar.
 - Editing period dates updates the month cards.
 - Adding/editing/removing a category and its ranges updates cells, stats, and legend; an invalid range (start > end) is rejected inline.
 - Selecting a category under "Paint", clicking a few blank/regular days on the calendar, paints them that category's color; the form's range list for that category updates to include the new day(s), merged into an adjacent range when contiguous.
