@@ -9,28 +9,7 @@
   <link rel="stylesheet" href="./css/tokens.css">
 </head>
 <body>
-  <div style="display: grid; grid-template-columns: 320px 1fr;">
-    <div style="padding: 16px; border-right: 1px solid var(--color-border);">
-      <calendar-config-form></calendar-config-form>
-    </div>
-    <div style="padding: 36px 44px 48px;">
-      <calendar-heatmap></calendar-heatmap>
-    </div>
-  </div>
-  <script type="module">
-    import './js/calendar-heatmap.js';
-    import './js/calendar-config-form.js';
-    import { defaultConfig } from './js/default-config.js';
-
-    const heatmap = document.querySelector('calendar-heatmap');
-    const form = document.querySelector('calendar-config-form');
-    heatmap.config = defaultConfig;
-    form.config = defaultConfig;
-    form.addEventListener('config-change', (e) => {
-      console.log('config-change', e.detail);
-      heatmap.config = e.detail;
-    });
-    form.addEventListener('paint-tool-change', (e) => console.log('paint-tool-change', e.detail));
-  </script>
+  <calendar-app></calendar-app>
+  <script type="module" src="./js/calendar-app.js"></script>
 </body>
 </html>
