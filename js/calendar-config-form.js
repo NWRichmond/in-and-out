@@ -1,5 +1,5 @@
-import { datesInRange, collapseDatesToRanges } from './date-utils.js';
-import { escapeHtml } from './html-utils.js';
+import { datesInRange, collapseDatesToRanges, formatDateLocal } from './date-utils.js';
+import { escapeHtml, sanitizeColor } from './html-utils.js';
 
 let nextCategorySeq = 1;
 
@@ -53,6 +53,18 @@ export class CalendarConfigForm extends HTMLElement {
     }));
   }
 
+  /**
+   * Resets the displayed paint-tool selection to "Off" without emitting a
+   * `paint-tool-change` event. Used by the host app to reconcile the form
+   * when the previously-active paint category is deleted out from under it.
+   */
+  resetPaintTool() {
+    if (this.#paintTool === null) return;
+    this.#paintTool = null;
+    const offRadio = this.shadowRoot?.querySelector('input[name="paint"][value=""]');
+    if (offRadio) offRadio.checked = true;
+  }
+
   #emitPaintToolChange() {
     this.dispatchEvent(new CustomEvent('paint-tool-change', {
       detail: { categoryId: this.#paintTool },
@@ -70,8 +82,8 @@ export class CalendarConfigForm extends HTMLElement {
       <fieldset>
         <legend>Period</legend>
         <div class="period-row">
-          <div><label for="period-start">Start</label><input type="date" id="period-start" value="${periodStart}"></div>
-          <div><label for="period-end">End</label><input type="date" id="period-end" value="${periodEnd}"></div>
+          <div><label for="period-start">Start</label><input type="date" id="period-start" value="${escapeHtml(periodStart)}"></div>
+          <div><label for="period-end">End</label><input type="date" id="period-end" value="${escapeHtml(periodEnd)}"></div>
         </div>
       </fieldset>
 
@@ -86,7 +98,7 @@ export class CalendarConfigForm extends HTMLElement {
         <div class="paint-options">
           <label><input type="radio" name="paint" value="" ${this.#paintTool === null ? 'checked' : ''}> Off</label>
           ${categories.map((c) => `
-            <label><input type="radio" name="paint" value="${c.id}" ${this.#paintTool === c.id ? 'checked' : ''}> ${escapeHtml(c.name)}</label>
+            <label><input type="radio" name="paint" value="${escapeHtml(c.id)}" ${this.#paintTool === c.id ? 'checked' : ''}> ${escapeHtml(c.name)}</label>
           `).join('')}
           <label><input type="radio" name="paint" value="erase" ${this.#paintTool === 'erase' ? 'checked' : ''}> Erase</label>
         </div>
@@ -106,7 +118,7 @@ export class CalendarConfigForm extends HTMLElement {
     return `
       <div class="category" data-category-index="${index}">
         <div class="category-head">
-          <input type="color" data-role="color" value="${category.color}">
+          <input type="color" data-role="color" value="${sanitizeColor(category.color)}">
           <input type="text" data-role="name" value="${escapeHtml(category.name)}">
           <button type="button" class="icon" data-role="move-up" title="Higher priority">↑</button>
           <button type="button" class="icon" data-role="move-down" title="Lower priority">↓</button>
@@ -114,9 +126,9 @@ export class CalendarConfigForm extends HTMLElement {
         </div>
         ${ranges.map((range, rangeIndex) => `
           <div class="range-row" data-range-index="${rangeIndex}">
-            <input type="date" data-role="range-start" value="${range.start}">
+            <input type="date" data-role="range-start" value="${escapeHtml(range.start)}">
             <span>–</span>
-            <input type="date" data-role="range-end" value="${range.end}">
+            <input type="date" data-role="range-end" value="${escapeHtml(range.end)}">
             <button type="button" class="icon" data-role="delete-range" title="Remove range">✕</button>
           </div>
         `).join('')}
@@ -190,7 +202,7 @@ export class CalendarConfigForm extends HTMLElement {
         this.render();
       });
       categoryEl.querySelector('[data-role="add-range"]').addEventListener('click', () => {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = formatDateLocal(new Date());
         category.dates = [...new Set([...category.dates, today])].sort();
         this.#emitConfigChange();
         this.render();
