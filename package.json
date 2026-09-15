@@ -1,8 +1,19 @@
 {
-  "name": "rendered-and-quartered-calendar",
+  "name": "in-and-out",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node --test"
+  },
+  "devDependencies": {
+    "vite": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.4.2",
+      "onFail": "download"
+    }
   }
 }

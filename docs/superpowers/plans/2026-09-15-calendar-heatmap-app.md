@@ -40,7 +40,7 @@ The git repo and this task's branch/worktree already exist (set up by the contro
 
 ```json
 {
-  "name": "rendered-and-quartered-calendar",
+  "name": "in-and-out",
   "private": true,
   "type": "module"
 }
