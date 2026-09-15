@@ -15,30 +15,28 @@
 - No build step, no bundler, no framework, no npm dependencies. Plain `.js` files loaded as ES modules.
 - `package.json` sets `"type": "module"` so the same `.js` files run under both `node --test` and the browser.
 - Category `color` fields are only ever set via `<input type="color">`, which always yields a safe `#rrggbb` string — this is what makes it safe to interpolate `category.color` directly into a `style="..."` attribute without escaping. Never add a free-text color field.
-- Any other user-provided string (category name, notes) that gets inserted into `innerHTML` MUST go through the shared `escapeHtml` pattern first.
+- Any other user-provided string (category name, notes) that gets inserted into `innerHTML` MUST go through the shared `escapeHtml` function exported by `js/html-utils.js` — never a locally redefined copy.
 - `localStorage` key: `calendar-heatmap-config`. Corrupt/missing/invalid stored config falls back to `default-config.js`'s `defaultConfig`, logged via `console.warn`, never thrown.
 - Dates are always ISO `YYYY-MM-DD` strings, parsed as local dates (never `new Date("YYYY-MM-DD")` directly — that parses as UTC and can shift the weekday near midnight in negative-UTC-offset timezones). Use `date-utils.js`'s `parseDateLocal`.
 - Git: local repo only, no remote. Terse, single-line, conventional-style commit subjects (`feat(scope): description`), no commit body.
 
 ---
 
-### Task 1: Project scaffold + `date-utils.js`
+### Task 1: Project scaffold + `date-utils.js` + `html-utils.js`
 
 **Files:**
 - Create: `package.json`
 - Create: `js/date-utils.js`
+- Create: `js/html-utils.js`
 - Test: `tests/date-utils.test.js`
+- Test: `tests/html-utils.test.js`
 
 **Interfaces:**
-- Produces: `parseDateLocal(dateStr: string): Date`, `formatDateLocal(date: Date): string`, `isWeekend(dateStr: string): boolean`, `datesInRange(startStr: string, endStr: string): string[]`, `collapseDatesToRanges(dates: string[]): {start: string, end: string}[]`, `enumerateMonths(periodStart: string, periodEnd: string): {year: number, month: number, name: string}[]` (month is 0-based, matching `Date`), `monthGridDays(year: number, month: number): ({day: number, date: string} | null)[]`, `isWithinPeriod(dateStr: string, periodStart: string, periodEnd: string): boolean`.
+- Produces: `parseDateLocal(dateStr: string): Date`, `formatDateLocal(date: Date): string`, `isWeekend(dateStr: string): boolean`, `datesInRange(startStr: string, endStr: string): string[]`, `collapseDatesToRanges(dates: string[]): {start: string, end: string}[]`, `enumerateMonths(periodStart: string, periodEnd: string): {year: number, month: number, name: string}[]` (month is 0-based, matching `Date`), `monthGridDays(year: number, month: number): ({day: number, date: string} | null)[]`, `isWithinPeriod(dateStr: string, periodStart: string, periodEnd: string): boolean`. Also produces `escapeHtml(value: unknown): string` from `js/html-utils.js` — the one shared implementation every other task imports instead of redefining.
 
-- [ ] **Step 1: Initialize the repo and scaffold `package.json`**
+- [ ] **Step 1: Scaffold `package.json`**
 
-```bash
-git init
-```
-
-Create `package.json`:
+The git repo and this task's branch/worktree already exist (set up by the controller before dispatch) — do not run `git init`. Just create `package.json`:
 
 ```json
 {
@@ -214,11 +212,55 @@ export function isWithinPeriod(dateStr, periodStart, periodEnd) {
 Run: `node --test tests/`
 Expected: PASS — 6 tests, 0 failures
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Write the failing test for `html-utils.js`**
+
+Create `tests/html-utils.test.js`:
+
+```js
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { escapeHtml } from '../js/html-utils.js';
+
+test('escapeHtml escapes the five HTML-significant characters', () => {
+  assert.equal(escapeHtml(`<b>"a" & 'b'</b>`), '&lt;b&gt;&quot;a&quot; &amp; &#39;b&#39;&lt;/b&gt;');
+});
+
+test('escapeHtml coerces non-string input', () => {
+  assert.equal(escapeHtml(42), '42');
+});
+```
+
+- [ ] **Step 7: Run the tests and confirm the new one fails**
+
+Run: `node --test tests/`
+Expected: FAIL — `Cannot find module '../js/html-utils.js'`
+
+- [ ] **Step 8: Implement `js/html-utils.js`**
+
+```js
+const ESCAPES = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+export function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (ch) => ESCAPES[ch]);
+}
+```
+
+- [ ] **Step 9: Run the tests and confirm they all pass**
+
+Run: `node --test tests/`
+Expected: PASS — 8 tests, 0 failures
+
+- [ ] **Step 10: Commit**
 
 ```bash
-git add package.json js/date-utils.js tests/date-utils.test.js
-git commit -m "feat(date-utils): add pure date/range helpers"
+git add package.json js/date-utils.js js/html-utils.js tests/date-utils.test.js tests/html-utils.test.js
+git commit -m "feat(date-utils): add pure date/range and html-escaping helpers"
 ```
 
 ---
@@ -343,7 +385,7 @@ git commit -m "feat(default-config): add H1 2026 example dataset"
 - Create: `index.html`
 
 **Interfaces:**
-- Consumes: `enumerateMonths`, `monthGridDays`, `isWithinPeriod`, `isWeekend`, `datesInRange` from `js/date-utils.js`; `defaultConfig` from `js/default-config.js` (index.html wiring only).
+- Consumes: `enumerateMonths`, `monthGridDays`, `isWithinPeriod`, `isWeekend`, `datesInRange` from `js/date-utils.js`; `escapeHtml` from `js/html-utils.js` (Task 1); `defaultConfig` from `js/default-config.js` (index.html wiring only).
 - Produces: custom element `<calendar-heatmap>` with property `config: Config` (setter, triggers render), boolean attribute `paint-active` (when present, day cells become clickable and get `data-date`), and a `day-click` event (`CustomEvent<{date: string}>`, bubbles, composed).
 
 - [ ] **Step 1: Create `css/tokens.css`**
@@ -389,14 +431,9 @@ a:hover { color: var(--link-color-hover); }
 
 ```js
 import { enumerateMonths, monthGridDays, isWithinPeriod, isWeekend, datesInRange } from './date-utils.js';
+import { escapeHtml } from './html-utils.js';
 
 const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[ch]);
-}
 
 function categoryFill(color) {
   return `color-mix(in srgb, ${color} 30%, white)`;
@@ -638,7 +675,7 @@ git commit -m "feat(calendar-heatmap): render month grids, stats, and legend"
 - Modify: `index.html`
 
 **Interfaces:**
-- Consumes: `datesInRange`, `collapseDatesToRanges` from `js/date-utils.js`.
+- Consumes: `datesInRange`, `collapseDatesToRanges` from `js/date-utils.js`; `escapeHtml` from `js/html-utils.js` (Task 1).
 - Produces: custom element `<calendar-config-form>` with property `config: Config` (setter, clones and renders), events `config-change` (`CustomEvent<Config>`, bubbles, composed — fired on every committed edit) and `paint-tool-change` (`CustomEvent<{categoryId: string | null}>` — `categoryId` is `null` for "off", `'erase'`, or a category's `id`).
 - Note: color inputs in this component are always `<input type="color">`, never free text — this is what lets `calendar-heatmap.js` and this file treat `category.color` as safe to interpolate into `style="..."` without escaping.
 
@@ -646,14 +683,9 @@ git commit -m "feat(calendar-heatmap): render month grids, stats, and legend"
 
 ```js
 import { datesInRange, collapseDatesToRanges } from './date-utils.js';
+import { escapeHtml } from './html-utils.js';
 
 let nextCategorySeq = 1;
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[ch]);
-}
 
 const STYLES = `
   :host { display: block; font-family: var(--font-sans); color: var(--color-text); font-size: 13px; }
@@ -958,23 +990,18 @@ git commit -m "feat(calendar-config-form): add gutter form for period and catego
 - Modify: `index.html`
 
 **Interfaces:**
-- Consumes: `defaultConfig` from `js/default-config.js`; `<calendar-heatmap>` and `<calendar-config-form>` from Tasks 3–4 (their properties/events as documented there).
+- Consumes: `defaultConfig` from `js/default-config.js`; `escapeHtml` from `js/html-utils.js` (Task 1); `<calendar-heatmap>` and `<calendar-config-form>` from Tasks 3–4 (their properties/events as documented there).
 - Produces: custom element `<calendar-app>`, the app's sole top-level element.
 
 - [ ] **Step 1: Implement `js/calendar-app.js`**
 
 ```js
 import { defaultConfig } from './default-config.js';
+import { escapeHtml } from './html-utils.js';
 import './calendar-heatmap.js';
 import './calendar-config-form.js';
 
 const STORAGE_KEY = 'calendar-heatmap-config';
-
-function escapeHtml(value) {
-  return String(value).replace(/[&<>"']/g, (ch) => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  })[ch]);
-}
 
 function isValidConfig(value) {
   return (
