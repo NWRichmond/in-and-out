@@ -1,5 +1,5 @@
-import { enumerateMonths, monthGridDays, isWithinPeriod, isWeekend, datesInRange } from './date-utils.js';
-import { escapeHtml } from './html-utils.js';
+import { enumerateMonths, monthGridDays, datesInRange, resolveDayCategory } from './date-utils.js';
+import { escapeHtml, sanitizeColor } from './html-utils.js';
 
 const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -7,20 +7,24 @@ function categoryFill(color) {
   return `color-mix(in srgb, ${color} 30%, white)`;
 }
 
-function computeStats(periodStart, periodEnd, categories) {
-  const categorySets = categories.map((c) => ({ name: c.name, color: c.color, dates: new Set(c.dates) }));
-
+function computeStats(periodStart, periodEnd, categorySets) {
+  const counts = new Map(categorySets.map((c) => [c, 0]));
   let regularCount = 0;
+
   for (const dateStr of datesInRange(periodStart, periodEnd)) {
-    const claimed = categorySets.some((c) => c.dates.has(dateStr));
-    if (!claimed && !isWeekend(dateStr)) regularCount++;
+    const resolved = resolveDayCategory(dateStr, periodStart, periodEnd, categorySets);
+    if (resolved.kind === 'category') {
+      counts.set(resolved.category, counts.get(resolved.category) + 1);
+    } else if (resolved.kind === 'regular') {
+      regularCount++;
+    }
   }
 
   const categoryStats = categorySets.map((c) => ({
     name: c.name,
     solid: c.color,
     fill: categoryFill(c.color),
-    count: [...c.dates].filter((d) => isWithinPeriod(d, periodStart, periodEnd)).length,
+    count: counts.get(c),
   }));
 
   return [
@@ -30,13 +34,12 @@ function computeStats(periodStart, periodEnd, categories) {
 }
 
 function resolveDay(dateStr, periodStart, periodEnd, categorySets) {
-  if (!isWithinPeriod(dateStr, periodStart, periodEnd)) return null;
-  for (const category of categorySets) {
-    if (category.dates.has(dateStr)) {
-      return { name: category.name, fill: categoryFill(category.color), text: 'var(--color-text)' };
-    }
+  const resolved = resolveDayCategory(dateStr, periodStart, periodEnd, categorySets);
+  if (!resolved) return null;
+  if (resolved.kind === 'category') {
+    return { name: resolved.category.name, fill: categoryFill(resolved.category.color), text: 'var(--color-text)' };
   }
-  if (isWeekend(dateStr)) {
+  if (resolved.kind === 'weekend') {
     return { name: 'Weekend', fill: 'var(--color-weekend-fill)', text: 'var(--color-weekend-text)' };
   }
   return { name: 'Regular workday', fill: 'var(--color-regular-fill)', text: 'var(--color-regular-text)' };
@@ -117,8 +120,12 @@ export class CalendarHeatmap extends HTMLElement {
   render() {
     if (!this.shadowRoot || !this.#config) return;
     const { periodStart, periodEnd, categories } = this.#config;
-    const categorySets = categories.map((c) => ({ name: c.name, color: c.color, dates: new Set(c.dates) }));
-    const stats = computeStats(periodStart, periodEnd, categories);
+    const categorySets = categories.map((c) => ({
+      name: c.name,
+      color: sanitizeColor(c.color),
+      dates: new Set(c.dates),
+    }));
+    const stats = computeStats(periodStart, periodEnd, categorySets);
     const legend = [
       ...stats,
       { name: 'Weekend', solid: 'var(--color-weekend-solid)', fill: 'var(--color-weekend-fill)', count: null },

@@ -7,6 +7,7 @@ import {
   enumerateMonths,
   monthGridDays,
   isWithinPeriod,
+  resolveDayCategory,
 } from '../js/date-utils.js';
 
 test('isWeekend identifies Saturday and Sunday', () => {
@@ -51,4 +52,27 @@ test('monthGridDays pads leading/trailing cells to full weeks', () => {
 test('isWithinPeriod is inclusive of both bounds', () => {
   assert.equal(isWithinPeriod('2026-02-01', '2026-02-01', '2026-07-31'), true);
   assert.equal(isWithinPeriod('2026-01-31', '2026-02-01', '2026-07-31'), false);
+});
+
+test('resolveDayCategory returns null outside the configured period', () => {
+  const result = resolveDayCategory('2026-01-01', '2026-02-01', '2026-07-31', []);
+  assert.equal(result, null);
+});
+
+test('resolveDayCategory picks the first matching category by priority order when dates overlap', () => {
+  const categorySets = [
+    { name: 'High priority', dates: new Set(['2026-03-10']) },
+    { name: 'Low priority', dates: new Set(['2026-03-10']) },
+  ];
+  const result = resolveDayCategory('2026-03-10', '2026-02-01', '2026-07-31', categorySets);
+  assert.equal(result.kind, 'category');
+  assert.equal(result.category.name, 'High priority');
+});
+
+test('resolveDayCategory falls back to weekend, then regular workday', () => {
+  const weekend = resolveDayCategory('2026-03-14', '2026-02-01', '2026-07-31', []); // Saturday
+  assert.equal(weekend.kind, 'weekend');
+
+  const regular = resolveDayCategory('2026-03-16', '2026-02-01', '2026-07-31', []); // Monday
+  assert.equal(regular.kind, 'regular');
 });

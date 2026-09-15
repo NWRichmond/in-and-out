@@ -88,3 +88,22 @@ export function monthGridDays(year, month) {
 export function isWithinPeriod(dateStr, periodStart, periodEnd) {
   return dateStr >= periodStart && dateStr <= periodEnd;
 }
+
+/**
+ * Single source of truth for "what does this date resolve to": a category
+ * (first match wins, by array order/priority), a weekend, or a regular
+ * workday — or `null` if the date falls outside the configured period.
+ * `categorySets` is an array of `{ dates: Set<string>, ... }` in priority
+ * order; any extra properties (name, color, id) pass through on the match
+ * so callers can render or tally without re-deriving them.
+ */
+export function resolveDayCategory(dateStr, periodStart, periodEnd, categorySets) {
+  if (!isWithinPeriod(dateStr, periodStart, periodEnd)) return null;
+  for (const category of categorySets) {
+    if (category.dates.has(dateStr)) {
+      return { kind: 'category', category };
+    }
+  }
+  if (isWeekend(dateStr)) return { kind: 'weekend' };
+  return { kind: 'regular' };
+}
