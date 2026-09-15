@@ -1,0 +1,8 @@
+{
+  "name": "rendered-and-quartered-calendar",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
